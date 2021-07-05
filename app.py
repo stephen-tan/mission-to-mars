@@ -1,5 +1,6 @@
 from flask import Flask, redirect, render_template, url_for
 from flask_pymongo import PyMongo
+from selenium import webdriver
 import scraping
 
 app = Flask(__name__)

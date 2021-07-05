@@ -12,6 +12,7 @@ def scrape_all():
     browser = Browser('chrome', **executable_path, headless=True)
 
     news_title, news_paragraph = mars_news(browser)
+    hemisphere_image_urls = hemisphere(browser)
 
     # Run all scraping functions and store results in a dictionary
     data = {
@@ -19,6 +20,7 @@ def scrape_all():
         "news_paragraph": news_paragraph,
         "featured_image": featured_image(browser),
         "facts": mars_facts(),
+        "hemispheres": hemisphere(browser),
         "last_modified": dt.datetime.now()
     }
 
@@ -96,6 +98,71 @@ def mars_facts():
 
     # Convert dataframe into HTML format, add bootstrap
     return df.to_html(classes="table table-striped")
+
+def hemisphere(browser):
+    # Visit URL
+    url = "https://astrogeology.usgs.gov/search/results?q=hemisphere+enhanced&k1=target&v1=Mars"
+    browser.visit(url)
+
+    hemisphere_image_urls = []
+
+    # Parse the html with soup
+    html = browser.html
+    home_page_soup = soup(html, 'html.parser')
+
+    # Inspecting the webpage shows that each image title is within the collapsible results class
+    results = home_page_soup.find_all("div", class_="item")
+
+    # Calculate how many images there are on the main page
+    num_hemispheres = len(home_page_soup.find_all("img", class_="thumb"))
+
+    # Create empty lists to store the data
+    hemi_titles = []
+    hemi_hyperlinks = []
+    jpg_images = []
+
+    parent_url = "https://astrogeology.usgs.gov/"
+
+    # Find the image link and title based off of how many hemispheres there are on the website
+    for result in results:
+        
+        # Create a dictionary to hold values
+        hemisphere = {}
+        
+        # Get the title tag from <h3 />
+        image_title = result.find("h3").text.strip()
+        
+        # Add the title to a dictionary
+        hemisphere["title"] = image_title
+        
+        # Get the relative link from the thumbnail <a />
+        main_page_image_partial_url = result.find("a")["href"]
+        
+        # Create a hyperlink with the full url
+        hyperlink = parent_url + main_page_image_partial_url
+        
+        # Visit the new page
+        browser.visit(hyperlink)
+        html = browser.html
+        image_soup = soup(html, 'html.parser')
+        
+        # Scrape the new webpage
+        results = image_soup.find_all("img", class_="wide-image")
+        
+        # Get the full size source image link
+        image_page_partial_url = results[0]["src"]
+        full_size_img_url = parent_url + image_page_partial_url
+        
+        # Add the image url to a dictionary    
+        hemisphere["img_url"] = full_size_img_url
+        
+        # Add the dictionary to the list
+        hemisphere_image_urls.append(hemisphere)
+        
+        # Go back to the main page
+        browser.back()
+
+    return hemisphere_image_urls
 
 if __name__ == "__main__":
 
